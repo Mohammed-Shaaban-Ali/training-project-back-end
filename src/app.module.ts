@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { CourseModule } from './modules/courses/courses.module';
 import { PaymentModule } from './modules/payments/payments.module';
 import { LessonModule } from './modules/lessons/lessons.module';
+import { LessonCompletionModule } from './modules/lessonCompletion/lessonCompletion.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { LessonModule } from './modules/lessons/lessons.module';
     PaymentModule,
     LessonModule,
     CourseModule,
+    LessonCompletionModule,
   ],
   controllers: [],
   providers: [],
