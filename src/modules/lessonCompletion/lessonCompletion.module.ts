@@ -10,4 +10,4 @@ import { LessonCompletion, lessonCompletionSchema } from "./lessonCompletion.sch
     ])
   ]
 })
-export class CourseModule {}
+export class LessonCompletionModule {};
