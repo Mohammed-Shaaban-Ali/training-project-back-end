@@ -1,15 +1,27 @@
 import { Module } from '@nestjs/common';
-import { UserModule } from './modules/users/users.modules';
-import { CourseModule } from './modules/courses/courses.module';
-import { PaymentModule } from './modules/payments/payments.module';
-import { LessonModule } from './modules/lessons/lessons.module';
-import { LessonCompletionModule } from './modules/lessonCompletion/lessonCompletion.module';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { HealthController } from './health/health.controller';
+import { createTypeOrmConfig } from './config/database.config';
 
 @Module({
   imports: [
-    UserModule,
+    // Configuration module
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env.local', '.env'],
+    }),
+
+    // Database module
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: createTypeOrmConfig,
+      inject: [ConfigService],
+    }),
+
+    // Feature modules
   ],
-  controllers: [],
+  controllers: [HealthController],
   providers: [],
 })
 export class AppModule {}
