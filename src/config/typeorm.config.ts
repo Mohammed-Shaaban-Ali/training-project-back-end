@@ -14,10 +14,10 @@ export default new DataSource({
   password: configService.get('DB_PASSWORD'),
   database: configService.get('DB_DATABASE'),
 
-  entities: [__dirname + '/src/**/*.entity{.ts,.js}'],
-  migrations: [__dirname + '/src/migrations/*{.ts,.js}'],
+  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+  migrations: [__dirname + '/../migrations/*{.ts,.js}'],
 
-  synchronize: false,
-  migrationsRun: false,
-  logging: true,
+  synchronize: configService.get<boolean>('TYPEORM_SYNCHRONIZE'),
+  migrationsRun: configService.get<boolean>('TYPEORM_MIGRATIONS_RUN'),
+  logging: configService.get<boolean>('TYPEORM_LOGGING'),
 });
