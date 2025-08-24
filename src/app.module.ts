@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { HealthController } from './health/health.controller';
 import { createTypeOrmConfig } from './config/database.config';
 import { UsersModule } from './modules/users';
+import { SchoolTypesModule } from './modules/education-structure/school-types/school-types.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { UsersModule } from './modules/users';
 
     // Feature modules
     UsersModule,
+    SchoolTypesModule,
   ],
   controllers: [HealthController],
   providers: [],

@@ -154,8 +154,6 @@ export class UsersService {
       .createQueryBuilder('user')
       .orderBy('user.created_at', 'DESC');
 
-    console.log('filters:', filters);
-
     if (!filters) {
       return queryBuilder;
     }
@@ -176,12 +174,6 @@ export class UsersService {
         typeof filters.active === 'string'
           ? filters.active === 'true'
           : !!filters.active;
-      console.log(
-        'filters.active:',
-        filters.active,
-        'activeValue:',
-        activeValue,
-      );
       queryBuilder.andWhere('user.active = :active', {
         active: activeValue,
       });

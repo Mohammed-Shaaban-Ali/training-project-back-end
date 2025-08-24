@@ -17,7 +17,6 @@ export const createTypeOrmConfig = (
 
   // Migration settings
   migrationsRun: configService.get<boolean>('TYPEORM_MIGRATIONS_RUN'),
-  migrationsTableName: 'typeorm_migrations',
 
   // Development settings
   synchronize: configService.get<boolean>('TYPEORM_SYNCHRONIZE'),

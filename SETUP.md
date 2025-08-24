@@ -128,10 +128,14 @@ npm run start:prod        # Start production server
 ### Database
 
 ```bash
-npm run migration:generate  # Generate migration
-npm run migration:run      # Run migrations
-npm run migration:revert   # Revert migration
-npm run migration:show     # Show migration status
+npm run migration:generate  # Generates a new migration file based on changes in your entities.
+npm run migration:create    # Generates a new migration file based on changes in your entities.
+npm run migration:run       # Runs all pending migrations (applies them to the database).
+npm run migration:revert    # Reverts the last executed migration.
+npm run migration:show      # Shows all migrations and their status (executed or pending).
+
+# u can add the file name when use generate and create command
+# eg: npm run migration:generate --name=[you migration name here]
 ```
 
 ### Testing
