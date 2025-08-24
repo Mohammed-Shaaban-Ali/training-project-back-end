@@ -9,10 +9,10 @@ import { Repository, SelectQueryBuilder } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { FilterUsersDto } from './dto/filter-users.dto';
-import { PaginationDto } from '../../common/dto/pagination.dto';
+import { FilterAndPaginationDto } from './dto/filter-and-pagination.dto';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 import { PaginationHelper } from '../../common/helpers/pagination.helper';
+import { UserHelper } from 'src/common/helpers/user.helper';
 
 @Injectable()
 export class UsersService {
@@ -37,7 +37,14 @@ export class UsersService {
         );
       }
 
-      const user = this.userRepository.create(createUserDto);
+      // hash password
+      const hashedPassword = await UserHelper.hashPassword(
+        createUserDto.password,
+      );
+      const user = this.userRepository.create({
+        ...createUserDto,
+        password: hashedPassword,
+      });
       return await this.userRepository.save(user);
     } catch (error) {
       if (error instanceof ConflictException) {
@@ -47,22 +54,20 @@ export class UsersService {
     }
   }
 
-  async findAll(
-    filters?: FilterUsersDto,
-    pagination?: PaginationDto,
-  ): Promise<PaginatedResult<User>> {
-    const queryBuilder = this.createFilteredQuery(filters);
+  async findAll(query: FilterAndPaginationDto): Promise<PaginatedResult<User>> {
+    const queryBuilder = this.createFilteredQuery(query);
 
     const total = await queryBuilder.getCount();
 
-    if (pagination) {
-      queryBuilder.skip(pagination.skip).take(pagination.limit);
+    if (query.page && query.limit) {
+      const skip = (query.page - 1) * query.limit;
+      queryBuilder.skip(skip).take(query.limit);
     }
 
     const users = await queryBuilder.getMany();
 
-    const page = pagination?.page || 1;
-    const limit = pagination?.limit || total || 10;
+    const page = query.page || 1;
+    const limit = query.limit || total || 10;
 
     return PaginationHelper.paginate(users, total, page, limit);
   }
@@ -117,6 +122,12 @@ export class UsersService {
     }
 
     try {
+      // If password is being updated, hash the new password
+      if (updateUserDto.password) {
+        updateUserDto.password = await UserHelper.hashPassword(
+          updateUserDto.password,
+        );
+      }
       Object.assign(user, updateUserDto);
       return await this.userRepository.save(user);
     } catch (error) {
@@ -135,30 +146,15 @@ export class UsersService {
     return await this.userRepository.save(user);
   }
 
-  async getActiveUsers(): Promise<User[]> {
-    return await this.userRepository.find({
-      where: { active: true },
-      order: {
-        created_at: 'DESC',
-      },
-    });
-  }
-
-  async getUsersByTeacher(teacherId: number): Promise<User[]> {
-    return await this.userRepository.find({
-      where: { teacher_id: teacherId },
-      order: {
-        created_at: 'DESC',
-      },
-    });
-  }
-
   private createFilteredQuery(
-    filters?: FilterUsersDto,
+    query: FilterAndPaginationDto,
   ): SelectQueryBuilder<User> {
+    const { page, limit, ...filters } = query;
     const queryBuilder = this.userRepository
       .createQueryBuilder('user')
       .orderBy('user.created_at', 'DESC');
+
+    console.log('filters:', filters);
 
     if (!filters) {
       return queryBuilder;
@@ -176,8 +172,18 @@ export class UsersService {
     }
 
     if (filters.active !== undefined) {
+      const activeValue =
+        typeof filters.active === 'string'
+          ? filters.active === 'true'
+          : !!filters.active;
+      console.log(
+        'filters.active:',
+        filters.active,
+        'activeValue:',
+        activeValue,
+      );
       queryBuilder.andWhere('user.active = :active', {
-        active: filters.active,
+        active: activeValue,
       });
     }
 

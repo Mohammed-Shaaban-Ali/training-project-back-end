@@ -5,10 +5,11 @@ import {
   IsEnum,
   IsNumber,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { UserRole } from '../entities/user.entity';
+import { PaginationDto } from 'src/common';
 
-export class FilterUsersDto {
+export class FilterAndPaginationDto extends PaginationDto {
   @IsOptional()
   @IsString()
   search?: string; // search with name or email
@@ -18,9 +19,12 @@ export class FilterUsersDto {
   role?: UserRole;
 
   @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  active?: boolean;
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return undefined;
+  })
+  active?: string;
 
   @IsOptional()
   @Type(() => Number)

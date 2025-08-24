@@ -10,11 +10,12 @@ import {
   ParseIntPipe,
   HttpStatus,
   HttpCode,
+  Put,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { FilterUsersDto } from './dto/filter-users.dto';
+import { FilterAndPaginationDto } from './dto/filter-and-pagination.dto';
 import { User } from './entities/user.entity';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
@@ -31,10 +32,9 @@ export class UsersController {
 
   @Get()
   async findAll(
-    @Query() filters: FilterUsersDto,
-    @Query() pagination: PaginationDto,
+    @Query() query: FilterAndPaginationDto,
   ): Promise<PaginatedResult<User>> {
-    return await this.usersService.findAll(filters, pagination);
+    return await this.usersService.findAll(query);
   }
 
   @Get(':id')
@@ -42,7 +42,7 @@ export class UsersController {
     return await this.usersService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
