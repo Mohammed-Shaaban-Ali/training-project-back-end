@@ -106,7 +106,21 @@ export class SchoolTypesService {
   }
 
   async remove(id: number): Promise<void> {
-    const schoolType = await this.findOne(id);
+    const schoolType = await this.schoolTypeRepository.findOne({
+      where: { id },
+      relations: ['educationTypes'],
+    });
+
+    if (!schoolType) {
+      throw new NotFoundException(`School type with ID ${id} not found`);
+    }
+
+    // Check if there are any related education types
+    if (schoolType.educationTypes && schoolType.educationTypes.length > 0) {
+      throw new ConflictException(
+        'Cannot delete school type that has associated education types. Please delete or reassign the education types first.',
+      );
+    }
 
     await this.schoolTypeRepository.remove(schoolType);
   }
@@ -117,6 +131,7 @@ export class SchoolTypesService {
     const { page, limit, ...filters } = query;
     const queryBuilder = this.schoolTypeRepository
       .createQueryBuilder('schoolType')
+      .leftJoinAndSelect('schoolType.educationTypes', 'educationTypes')
       .orderBy('schoolType.created_at', 'DESC');
 
     if (filters.search) {

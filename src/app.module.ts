@@ -5,6 +5,7 @@ import { HealthController } from './health/health.controller';
 import { createTypeOrmConfig } from './config/database.config';
 import { UsersModule } from './modules/users';
 import { SchoolTypesModule } from './modules/education-structure/school-types/school-types.module';
+import { EducationTypesModule } from './modules/education-structure/education-types/education-types.module';
 
 @Module({
   imports: [
@@ -23,7 +24,10 @@ import { SchoolTypesModule } from './modules/education-structure/school-types/sc
 
     // Feature modules
     UsersModule,
+
+    // education structure
     SchoolTypesModule,
+    EducationTypesModule,
   ],
   controllers: [HealthController],
   providers: [],

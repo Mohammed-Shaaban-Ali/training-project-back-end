@@ -12,7 +12,7 @@ export const createTypeOrmConfig = (
   database: configService.get<string>('DB_DATABASE'),
 
   // Entity and migration paths
-  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+entities: [__dirname + '/../modules/**/*.entity.{ts,js}'],
   migrations: [__dirname + '/../migrations/*{.ts,.js}'],
 
   // Migration settings

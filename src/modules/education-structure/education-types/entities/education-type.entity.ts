@@ -4,20 +4,22 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  OneToMany,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
-import { EducationType } from '../../education-types/entities/education-type.entity';
+import { SchoolType } from '../../school-types/entities/school-type.entity';
 
-@Entity('school_types')
-export class SchoolType {
+@Entity('education_types')
+export class EducationType {
   @PrimaryGeneratedColumn('increment')
   id: number;
 
   @Column({ type: 'varchar', length: 255 })
   name: string;
 
-  @OneToMany(() => EducationType, (educationType) => educationType.schoolType)
-  educationTypes: EducationType[];
+  @ManyToOne(() => SchoolType, (schoolType) => schoolType.educationTypes)
+  @JoinColumn({ name: 'school_type_id' })
+  schoolType: SchoolType;
 
   @CreateDateColumn()
   created_at: Date;
