@@ -1,3 +1,11 @@
+// main.ts — put this at the very top
+import * as nodeCrypto from 'crypto';
+
+if (!(global as any).crypto) {
+  // Expose Node's crypto module as global.crypto so libraries that expect a browser-like crypto work.
+  (global as any).crypto = nodeCrypto;
+}
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
