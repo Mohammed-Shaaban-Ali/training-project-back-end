@@ -1,4 +1,4 @@
-# Training Project – Back End (NestJS + PostgreSQL)
+# Learning management System– Back End (NestJS + PostgreSQL)
 
 A quick reference to run the app for **local development** and with **Docker Compose** (PostgreSQL only or full stack).
 
