@@ -10,12 +10,21 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SuccessResponseInterceptor } from './common/interceptors/successResponseTransform.interceptor';
+import { FailureResponseFilter } from './common/failureResponseFilter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-    app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api');
+
+  // mutate the success response to add the success = true
+  app.useGlobalInterceptors(new SuccessResponseInterceptor());
+
+  // in failure case just send the following in the response {success: false, message, statusCode} that is all
+  app.useGlobalFilters(new FailureResponseFilter());
+
 
   // Global validation pipe
   app.useGlobalPipes(

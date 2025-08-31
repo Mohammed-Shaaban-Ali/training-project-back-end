@@ -1,12 +1,11 @@
 import { PaginatedResult } from '../interfaces/paginated-result.interface';
 
 export class PaginationHelper {
-  static paginate<T>(
-    data: T[],
-    total: number,
-    page: number,
-    limit: number,
-  ): PaginatedResult<T> {
+
+  //?Good
+  static paginate<T>(params): any{
+    const { data, total, page, limit } = params;
+
     const totalPages = Math.ceil(total / limit);
 
     return {
