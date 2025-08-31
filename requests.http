@@ -1,0 +1,22 @@
+@baseUrl = http://localhost:3333/api
+@token = 'theJWTToken'
+
+### Create new user route
+
+POST {{baseUrl}}/users
+Content-Type: application/json
+#Authorization: Bearer {{token}}
+
+{
+ "name": "test",
+  "email": "test@test.com",
+  "teacher_id": null,
+  "password": "testtest",
+  "role": "teacher",
+  "phone": "+201111111111",
+  "image": null,
+  "active": true
+}
+
+### Get a user by id
+GET {{baseUrl}}/users/12

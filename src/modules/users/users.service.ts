@@ -3,6 +3,8 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Logger,
+  HttpException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
@@ -16,6 +18,9 @@ import { UserHelper } from 'src/common/helpers/user.helper';
 
 @Injectable()
 export class UsersService {
+
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -59,6 +64,7 @@ export class UsersService {
 
     const total = await queryBuilder.getCount();
 
+    
     if (query.page && query.limit) {
       const skip = (query.page - 1) * query.limit;
       queryBuilder.skip(skip).take(query.limit);
@@ -69,13 +75,17 @@ export class UsersService {
     const page = query.page || 1;
     const limit = query.limit || total || 10;
 
-    return PaginationHelper.paginate(users, total, page, limit);
+
+    return PaginationHelper.paginate({users, total, page, limit});
+
   }
 
   async findOne(id: number): Promise<User> {
+
     const user = await this.userRepository.findOne({
       where: { id },
     });
+
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
