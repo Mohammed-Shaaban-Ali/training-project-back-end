@@ -9,7 +9,8 @@ export class FailureResponseFilter implements ExceptionFilter {
 
   catch(exception: Error | HttpException, host: ArgumentsHost) {
 
-    this.logger.error(exception?.message || 'Something went wrong', exception.stack);
+    // this.logger.error('Something went wrong::', exception.message);
+    this.logger.error('Error details ', exception.stack);
     
     const executionContext = host.switchToHttp();
     const response = executionContext.getResponse();

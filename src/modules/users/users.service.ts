@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Logger,
   HttpException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
@@ -15,6 +16,10 @@ import { FilterAndPaginationDto } from './dto/filter-and-pagination.dto';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 import { PaginationHelper } from '../../common/helpers/pagination.helper';
 import { UserHelper } from 'src/common/helpers/user.helper';
+import { MailService } from 'src/utilities/mailer-service';
+import {v4 as uuidV4} from 'uuid';
+import { ConfigService } from '@nestjs/config';
+
 
 @Injectable()
 export class UsersService {
@@ -24,6 +29,8 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly mailService: MailService,
+    private readonly config: ConfigService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -42,15 +49,10 @@ export class UsersService {
         );
       }
 
-      // hash password
-      const hashedPassword = await UserHelper.hashPassword(
-        createUserDto.password,
-      );
-      const user = this.userRepository.create({
-        ...createUserDto,
-        password: hashedPassword,
-      });
+      const user = this.userRepository.create({...createUserDto});
+
       return await this.userRepository.save(user);
+
     } catch (error) {
       if (error instanceof ConflictException) {
         throw error;
@@ -80,11 +82,19 @@ export class UsersService {
 
   }
 
-  async findOne(id: number): Promise<User> {
+  async findOne(id: number, select?: string[]): Promise<User> {
 
-    const user = await this.userRepository.findOne({
-      where: { id },
-    });
+    const query = {};
+
+    if (id) {
+      query['where']= {id};
+    }
+
+    if(select && select.length) {
+      query['select'] = select;
+    }
+
+    const user = await this.userRepository.findOne(query);
 
 
     if (!user) {
@@ -93,6 +103,7 @@ export class UsersService {
 
     return user;
   }
+
 
   async findByEmail(email: string, teacherId?: number): Promise<User | null> {
     return await this.userRepository.findOne({
@@ -143,6 +154,13 @@ export class UsersService {
     } catch (error) {
       throw new BadRequestException('Failed to update user');
     }
+  }
+
+  async updateV2(params) {
+
+    const {query, updatedFields} = params;
+
+    return await this.userRepository.update(query, updatedFields);
   }
 
   async remove(id: number): Promise<void> {
@@ -215,4 +233,178 @@ export class UsersService {
 
     return queryBuilder;
   }
+
+  public async changePassword(params) {
+
+    const {id, body} = params;
+    const {newPassword, oldPassword} = body
+
+    const select = ['id','password'];
+    const user = await this.findOne(id, select);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const isMatching = await UserHelper.comparePassword(oldPassword, user.password);
+
+    if(!isMatching) {
+      throw new BadRequestException('The Old Password is not correct');
+    }
+
+
+    console.log('---user---');
+    console.log(user);
+
+    const hashedPassword = await UserHelper.hashPassword(newPassword);
+
+
+    const query = {id};
+    const updatedFields = {password:hashedPassword};
+
+    await this.updateV2({query, updatedFields});
+
+    
+    
+    return ;
+  }
+
+ 
+
+  public async forgetPassword (params: {currentUser: User, hostname: string}): Promise<void> {
+
+    const {currentUser, hostname} = params;
+    // generate the reset password token
+    const resetToken = uuidV4();
+
+    //generate the reset password expiry date
+    const validTimeBeforeExpiration =  15 // in minutes
+
+    const expiresIn =  new Date();
+    expiresIn.setMinutes(expiresIn.getMinutes() + validTimeBeforeExpiration );
+    expiresIn.toISOString();
+    // persist the resetToken and expiry date in the db
+    const query = {email: currentUser.email};
+    const updatedFields = {resetToken, resetTokenExpiryDate: expiresIn};
+  
+
+    await this.updateV2({query, updatedFields});
+
+    // need to send a reset password email 
+
+    const host = this.getHost(hostname);
+    const url = `${host}/api/users/resetPassword?token=${encodeURIComponent(resetToken)}`; 
+
+    console.log('--url:', url);
+    const subject = 'Forget Password';
+    const text = this.getText({url, user: currentUser, expiresInMinutes: 15});
+    const html = this.getHtml({subject, name: currentUser?.name, url, expiresInMinutes: 15});
+    // const text = this.getText({expiresIn, user: currentUser, resetToken}); 
+
+    console.log('---before sending the email---');
+    await this.mailService.sendMail(currentUser.email, subject, text, html).catch(error => {
+      this.logger.error('changePassword::', error.trace);
+      throw new InternalServerErrorException('Error while sending password change email');
+    })
+
+    return;
+  }
+
+  private getText(params: {user: User, expiresInMinutes: number, url: string}) {
+
+    const {user, expiresInMinutes, url} = params;
+
+
+    const text =[
+      `Hi ${user?.name || 'there'},`,
+      '',
+      `We received a request to reset your password.`,
+      `Use the link below to set a new one (expires in ${expiresInMinutes} minutes):`,
+      url,
+      '',
+      `If you didn’t request this, you can safely ignore this email.`,
+      '',
+      `Thanks,`,
+      `The Team`,
+    ].join('\n');
+
+    return text;
+  }
+
+  private getHost(hostname: string): string {
+
+    const env = this.config.getOrThrow<string>('app.nodeEnv', 'development');
+    const appPort = this.config.getOrThrow<string>('app.port', '3333');
+
+    let host: string = `http://${hostname}:${appPort}`; 
+
+    if (hostname !== 'localhost' && env === 'production') {
+      host = `https://'${hostname}`;
+    }
+    
+    return host;
+  }
+
+  private getHtml(params: {subject: string, name: string, url: string, expiresInMinutes: 15}) {
+
+    const {subject, name, url, expiresInMinutes} = params;
+    
+
+    return `<!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <title>${subject ?? 'There'}</title>
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+            </head>
+            <body style="margin:0;background:#f6f7fb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7fb;padding:32px 0;">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;">
+                      <tr>
+                        <td style="background:#1f53ff;height:6px;"></td>
+                      </tr>
+                      <tr>
+                        <td style="padding:28px;">
+                          <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:#111;">Reset your password</h1>
+                          <p style="margin:0 0 16px;font-size:15px;color:#333;">
+                            Hi ${this.escapeHtml(name)}, we received a request to reset your password.
+                          </p>
+                          <p style="margin:0 0 20px;font-size:15px;color:#333;">
+                            Click the button below to choose a new password. This link expires in <strong>${expiresInMinutes ?? 15} minutes</strong>.
+                          </p>
+                          <p style="margin:0 0 28px;">
+                            <a href="${url}" style="display:inline-block;background:#1f53ff;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600;">
+                              Reset Password
+                            </a>
+                          </p>
+                          <p style="margin:0 0 10px;font-size:13px;color:#666;">
+                            If the button doesn’t work, copy and paste this URL into your browser:
+                          </p>
+                          <p style="word-break:break-all;margin:0 0 24px;font-size:12px;color:#666;">
+                            <a href="${url}" style="color:#1f53ff;text-decoration:underline;">${url}</a>
+                          </p>
+                          <p style="margin:0;font-size:13px;color:#666;">If you didn’t request this, you can safely ignore this email.</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="background:#f0f2f7;padding:14px 28px;font-size:12px;color:#65708b;">
+                          © ${new Date().getFullYear()} Your Company
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>`
+
+  }
+
+  // Minimal HTML escaping helper for the template:
+  private escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
+  }
+
 }

@@ -1,4 +1,4 @@
-import  {Injectable} from '@nestjs/common';
+import  {BadRequestException, Injectable, NotFoundException} from '@nestjs/common';
 import {UsersService} from './users.service';
 import { User } from './entities/user.entity';
 import { PaginatedResult } from 'src/common';
@@ -11,63 +11,70 @@ export class UsersInterface {
   constructor (private readonly usersService: UsersService) {}
 
 
-  create (createUserDto: CreateUserDto) {
-    try {
+  public create (createUserDto: CreateUserDto) {
     
     return this.usersService.create(createUserDto);
 
-    } catch(error) {
-      throw error;
-    }
   }
 
-  findAll (query): Promise<PaginatedResult<User>> {
-    try {
-      return this.usersService.findAll(query);
-
-    } catch(error) {
-      throw error;
-    }
+  public findAll (query): Promise<PaginatedResult<User>> {
+    return this.usersService.findAll(query);
 
   }
 
-  findOne (id: number) {
-    try {
-    
+  public findOne (id: number) {    
     return this.usersService.findOne(id);
 
-    } catch(error) {
-      throw error;
-    }
   }
 
-  update(params) {
-    try {
-      const {id, updateUserDto} = params;
+  public update(params) {
+    const {id, updateUserDto} = params;
 
-      return this.usersService.update(id, updateUserDto);
-
-    } catch(error) {
-      throw error;
-    }
+    return this.usersService.update(id, updateUserDto);
+    
   }
 
-  toggleActive (id: number) {
-    try {
-      return this.usersService.toggleActive(id);
-
-    } catch(error) {
-      throw error;
-    }
+  public toggleActive (id: number) {
+   
+    return this.usersService.toggleActive(id);
   }
 
   remove (id: number) {
-    try {
-      return this.usersService.remove(id);
 
-    } catch(error) {
-      throw error;
-    }
+    return this.usersService.remove(id);
+  }
+
+  public changePassword(params) {
+    
+    const {body, id} = params;
+
+    if (!body.oldPassword) throw new BadRequestException('Old Password is required');
+    
+    if (!body.newPassword) throw new BadRequestException('The new password is missed');
+    
+    if (!id) throw new BadRequestException('User id is missing');
+
+    // if (!hostname) throw new BadRequestException('Request hostname is missing');
+
+
+    return this.usersService.changePassword(params);
+  }
+
+  public forgetPassword(params: {currentUser: User, hostname: string}) {
+    const {currentUser, hostname} = params;
+
+    if (!currentUser) throw new NotFoundException('User not found');
+
+    if (!currentUser?.id) throw new NotFoundException('User Id not found');
+    
+    if (!currentUser?.email) throw new NotFoundException('Email not found');
+
+
+    if (!hostname) throw new NotFoundException('request hostname not found');
+
+
+    return this.usersService.forgetPassword(params);
+
   }
 
 }

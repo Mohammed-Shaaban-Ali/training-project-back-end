@@ -4,11 +4,13 @@ import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { User } from './entities/user.entity';
 import { UsersInterface } from './users.interface';
+import { AttachUserInterceptor } from 'src/modules/users/interceptors/attachUser.interceptor';
+import { MailService } from 'src/utilities/mailer-service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User])],
   controllers: [UsersController],
-  providers: [UsersService, UsersInterface],
-  exports: [UsersService], // Export service for use in other modules
+  providers: [UsersService, UsersInterface, AttachUserInterceptor, MailService],
+  exports: [UsersService, AttachUserInterceptor], // Export service for use in other modules
 })
 export class UsersModule {}
