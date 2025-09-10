@@ -23,6 +23,7 @@ export const createTypeOrmConfig = (
   synchronize: configService.get<boolean>('TYPEORM_SYNCHRONIZE'),
   logging: configService.get<boolean>('TYPEORM_LOGGING'),
 
+
   // Connection pool settings
   extra: {
     connectionLimit: 10,

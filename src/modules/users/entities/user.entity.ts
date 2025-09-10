@@ -46,6 +46,18 @@ export class User {
   @Column({ type: 'boolean', default: true })
   active: boolean;
 
+  @Column({ type: 'varchar', length: 255, nullable: true})
+  refreshToken: string | null;
+
+  @Column({ type: 'timestamp', nullable: true})
+  refreshTokenExpiryDate: Date | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true})
+  resetToken: string | null;
+
+  @Column({ type: 'timestamp', nullable: true})
+  resetTokenExpiryDate: Date | null;
+
   @CreateDateColumn()
   created_at: Date;
 }

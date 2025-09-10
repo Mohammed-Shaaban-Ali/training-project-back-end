@@ -1,5 +1,31 @@
 @baseUrl = http://localhost:3333/api
-@token = 'theJWTToken'
+@token =eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mbyI6eyJpZCI6IjUifSwiaWF0IjoxNzU3NTE2NTI4LCJleHAiOjE3NTc1MjM3Mjh9.-c1J_e6Filukj5Gd3CxVCe3Ar0BClovFd-vYRRcaVhI
+
+
+
+### Get a user by id
+GET {{baseUrl}}/users/5
+Authorization: Bearer {{token}}
+
+
+
+### Login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email" : "mahqwerty31@gmail.com",
+  "password" : "faragfarag"
+}
+
+
+### My profile
+GET {{baseUrl}}/users/me
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+
+###############################################################
 
 ### Create new user route
 
@@ -18,5 +44,36 @@ Content-Type: application/json
   "active": true
 }
 
-### Get a user by id
-GET {{baseUrl}}/users/12
+### SingUp api
+POST {{baseUrl}}/auth/singup
+Content-Type: application/json
+
+{
+   "name": "farag",
+  "email": "mahqwerty31@gmail.com",
+  "teacher_id": null,
+  "password": "faragfarag",
+  "role": "teacher",
+  "phone": "+201111111111",
+  "image": null,
+  "active": true
+}
+
+
+### Change password
+PATCH {{baseUrl}}/users/changePassword
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "oldPassword" :"mahmoud",
+  "newPassword" : "faragfarag"
+}
+
+### forget password
+POST {{baseUrl}}/users/forgetPassword
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+
+
