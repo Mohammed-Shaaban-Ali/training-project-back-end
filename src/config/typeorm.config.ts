@@ -17,7 +17,7 @@ export default new DataSource({
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/../migrations/*{.ts,.js}'],
 
-  synchronize: configService.get<boolean>('TYPEORM_SYNCHRONIZE'),
+  synchronize: false,
   migrationsRun: configService.get<boolean>('TYPEORM_MIGRATIONS_RUN'),
   logging: configService.get<boolean>('TYPEORM_LOGGING'),
 });

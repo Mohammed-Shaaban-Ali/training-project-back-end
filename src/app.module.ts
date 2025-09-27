@@ -12,6 +12,8 @@ import { AuthenticationGuard } from './common/guards/authentiation.guard';
 import { MailService } from './utilities/mailer-service';
 import { APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core';
 import { AttachUserInterceptor } from './modules/users/interceptors';
+import { SchoolTypesModule } from './modules/education-structure/school-types/school-types.module';
+import { EducationTypesModule } from './modules/education-structure/education-types/education-types.module';
 
 @Module({
   imports: [
@@ -51,6 +53,10 @@ import { AttachUserInterceptor } from './modules/users/interceptors';
     UsersModule,
     AuthModule,
     GlobalUtilitiesModule,
+
+    // education structure
+    SchoolTypesModule,
+    EducationTypesModule,
   ],
   controllers: [HealthController],
   providers: [

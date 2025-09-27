@@ -5,8 +5,8 @@ export class CreateUsersTable1724518800000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TYPE "user_role_enum" AS ENUM('teacher', 'student', 'moderator', 'super_admin')
-    `);
+                CREATE TYPE IF NOT EXISTS "user_role_enum" AS ENUM('teacher', 'student', 'moderator', 'super_admin')
+            `);
 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "users" (
