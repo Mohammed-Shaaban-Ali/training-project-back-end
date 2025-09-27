@@ -14,7 +14,7 @@ export class ChangePasswordDto {
 }
 
 
-function IsStrongPassword(validationOptions?: ValidationOptions) {
+export function IsStrongPassword(validationOptions?: ValidationOptions) {
 
   return (object: Object, propertyName: string) => {
     registerDecorator({

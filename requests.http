@@ -1,15 +1,15 @@
 @baseUrl = http://localhost:3333/api
-@token =eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mbyI6eyJpZCI6IjUifSwiaWF0IjoxNzU3NTE2NTI4LCJleHAiOjE3NTc1MjM3Mjh9.-c1J_e6Filukj5Gd3CxVCe3Ar0BClovFd-vYRRcaVhI
+@token =eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mbyI6eyJpZCI6IjUifSwiaWF0IjoxNzU4OTYxNjY5LCJleHAiOjE3NTg5Njg4Njl9.PUCm43puRgyMR440DtJ-9oOpnT-KXhgtczVv_o3wgGY
 
 
 
-### Get a user by id
+###? Get a user by id
 GET {{baseUrl}}/users/5
 Authorization: Bearer {{token}}
 
 
 
-### Login
+###? Login
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
@@ -19,19 +19,24 @@ Content-Type: application/json
 }
 
 
-### My profile
+###? My profile
 GET {{baseUrl}}/users/me
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 
+###? Get all Users
+GET {{baseUrl}}/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+
+
 ###############################################################
 
-### Create new user route
-
+###? Create new user route
 POST {{baseUrl}}/users
 Content-Type: application/json
-#Authorization: Bearer {{token}}
 
 {
  "name": "test",
@@ -44,7 +49,7 @@ Content-Type: application/json
   "active": true
 }
 
-### SingUp api
+###? SingUp api
 POST {{baseUrl}}/auth/singup
 Content-Type: application/json
 
@@ -60,20 +65,31 @@ Content-Type: application/json
 }
 
 
-### Change password
+###? Change password
 PATCH {{baseUrl}}/users/changePassword
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "oldPassword" :"mahmoud",
+  "oldPassword" :"qqwwee",
   "newPassword" : "faragfarag"
 }
 
-### forget password
+###? Forget password
 POST {{baseUrl}}/users/forgetPassword
-Authorization: Bearer {{token}}
+Content-Type: application/json 
+ 
+{
+  "email": "mahqwerty31@gmail.com"
+}
+
+###? Reset password
+PUT {{baseUrl}}/users/resetPassword
 Content-Type: application/json
 
+{
+  "resetToken": "40c57d77-b74e-4f6c-b0f1-d03bc59b8c29",
+  "newPassword": "faragfarag"
+}
 
 
