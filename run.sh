@@ -1,118 +1,352 @@
 #!/bin/bash
 
-# Script to manage the development and production environments
+# Professional script to manage Docker-based development and production environments
 # for training-project-back-end application
+
+set -e  # Exit on error
 
 # Colors for better readability
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 # Environment variables files
 DEV_ENV_FILE=".env.development"
 PROD_ENV_FILE=".env.production"
 
-print_usage() {
-  echo -e "${YELLOW}Usage:${NC}"
-  echo -e "  $0 ${GREEN}dev:db:start${NC}    - Start development database"
-  echo -e "  $0 ${GREEN}dev:db:stop${NC}     - Stop development database"
-  echo -e "  $0 ${GREEN}dev:app${NC}         - Run app with development configuration"
-  echo -e "  $0 ${GREEN}prod:app${NC}        - Run app with production configuration"
-  echo -e "  $0 ${GREEN}migrations:run${NC}  - Run database migrations"
-  echo -e "  $0 ${GREEN}help${NC}            - Show this help message"
+# Application name
+APP_NAME="LMS Application"
+
+# Docker related variables
+DEV_COMPOSE_FILE="docker-compose.dev.yml"
+PROD_COMPOSE_FILE="docker-compose.yml"
+DEV_DB_CONTAINER="lms_postgres_dev"
+PROD_DB_CONTAINER="lms_postgres"
+APP_CONTAINER="lms_app"
+
+# Log function for consistent output
+log() {
+  local level=$1
+  local message=$2
+  local color=$NC
+  
+  case "$level" in
+    "INFO") color=$GREEN ;;
+    "WARN") color=$YELLOW ;;
+    "ERROR") color=$RED ;;
+    "DEBUG") color=$BLUE ;;
+  esac
+  
+  echo -e "[${color}${level}${NC}] ${message}"
 }
 
+# Print script banner
+print_banner() {
+  local current_date=$(date "+%Y-%m-%d %H:%M:%S")
+  echo -e "\n${BOLD}=============================================${NC}"
+  echo -e "${BOLD}  ${APP_NAME} Environment Manager${NC}"
+  echo -e "${BOLD}  ${current_date}${NC}"
+  echo -e "${BOLD}=============================================${NC}\n"
+}
+
+# Print usage information
+print_usage() {
+  echo -e "${BOLD}Commands:${NC}"
+  echo -e "  ${GREEN}dev:db:start${NC}        Start development database"
+  echo -e "  ${GREEN}dev:db:stop${NC}         Stop development database"
+  echo -e "  ${GREEN}dev:app${NC}             Run app in development mode with Docker"
+  echo -e "  ${GREEN}dev:app:logs${NC}        View development app logs"
+  echo -e "  ${GREEN}prod:app${NC}            Run app in production mode with Docker"
+  echo -e "  ${GREEN}prod:app:logs${NC}       View production app logs"
+  echo -e "  ${GREEN}prod:app:stop${NC}       Stop production app"
+  echo -e "  ${GREEN}migrations:run${NC}      Run database migrations (dev environment)"
+  echo -e "  ${GREEN}migrations:run:prod${NC} Run database migrations (prod environment)"
+  echo -e "  ${GREEN}status${NC}              Show status of all containers"
+  echo -e "  ${GREEN}help${NC}                Show this help message"
+}
+
+# Check if Docker and Docker Compose are available
 check_docker() {
+  log "INFO" "Checking Docker installation..."
+  
   if ! command -v docker &> /dev/null; then
-    echo -e "${RED}Docker is not installed or not in PATH. Please install Docker first.${NC}"
+    log "ERROR" "Docker is not installed or not in PATH. Please install Docker first."
     exit 1
   fi
 
   if ! docker info &> /dev/null; then
-    echo -e "${RED}Docker daemon is not running. Please start Docker first.${NC}"
+    log "ERROR" "Docker daemon is not running. Please start Docker first."
     exit 1
+  fi
+
+  # Check for docker compose
+  if ! docker compose version &> /dev/null && ! docker-compose version &> /dev/null; then
+    log "ERROR" "Docker Compose is not installed. Please install Docker Compose first."
+    exit 1
+  fi
+  
+  log "INFO" "Docker environment verified ✓"
+}
+
+# Docker compose wrapper to handle both docker-compose and docker compose
+docker_compose() {
+  local compose_file=$1
+  shift
+  
+  if docker compose version &> /dev/null; then
+    docker compose -f "$compose_file" "$@"
+  else
+    docker-compose -f "$compose_file" "$@"
   fi
 }
 
+# Start development database
 start_dev_db() {
   check_docker
-  echo -e "${YELLOW}Starting development database...${NC}"
-  docker-compose -f docker-compose.dev.yml up -d
+  log "INFO" "Starting development database..."
+  docker_compose "$DEV_COMPOSE_FILE" up -d
   
   # Wait for database to be ready
-  echo -e "${YELLOW}Waiting for database to be ready...${NC}"
-  sleep 5
-  if docker exec lms_postgres_dev pg_isready -U postgres &> /dev/null; then
-    echo -e "${GREEN}Development database is running and ready!${NC}"
-    echo -e "${YELLOW}Connection details:${NC}"
-    echo "  Host: localhost"
-    echo "  Port: 5432"
-    echo "  User: postgres"
-    echo "  Password: postgres"
-    echo "  Database: lms_db_dev"
-  else
-    echo -e "${RED}Database did not start properly. Check docker logs for details:${NC}"
-    echo -e "  docker logs lms_postgres_dev"
-  fi
+  log "INFO" "Waiting for database to be ready..."
+  local max_attempts=10
+  local attempt=1
+  
+  while [ $attempt -le $max_attempts ]; do
+    if docker exec "$DEV_DB_CONTAINER" pg_isready -U postgres &> /dev/null; then
+      log "INFO" "Development database is running and ready!"
+      echo -e "${BOLD}Connection details:${NC}"
+      echo "  Host: localhost"
+      echo "  Port: 5432"
+      echo "  User: postgres"
+      echo "  Password: postgres"
+      echo "  Database: lms_db_dev"
+      return 0
+    fi
+    
+    log "DEBUG" "Attempt $attempt/$max_attempts - Database not ready yet, waiting..."
+    sleep 2
+    ((attempt++))
+  done
+  
+  log "ERROR" "Database did not start properly within the expected time. Check logs:"
+  echo "  docker logs $DEV_DB_CONTAINER"
+  return 1
 }
 
+# Stop development database
 stop_dev_db() {
   check_docker
-  echo -e "${YELLOW}Stopping development database...${NC}"
-  docker-compose -f docker-compose.dev.yml down
-  echo -e "${GREEN}Development database stopped.${NC}"
+  log "INFO" "Stopping development database..."
+  docker_compose "$DEV_COMPOSE_FILE" down
+  log "INFO" "Development database stopped."
 }
 
+# Run the app in development mode using Docker
 run_dev_app() {
-  echo -e "${YELLOW}Starting application in development mode...${NC}"
-  if [ -f "$DEV_ENV_FILE" ]; then
-    echo -e "${GREEN}Using development environment file: $DEV_ENV_FILE${NC}"
-    export $(grep -v '^#' $DEV_ENV_FILE | xargs)
-  else
-    echo -e "${YELLOW}Warning: $DEV_ENV_FILE not found. Using default environment variables.${NC}"
-  fi
+  check_docker
+  log "INFO" "Starting application in development mode..."
   
-  npm run start:dev
+  # Create a custom docker-compose file for development
+  local TMP_DEV_COMPOSE="docker-compose.dev.app.yml"
+  
+  # Copy the existing docker-compose.yml and modify it for development
+  cat > "$TMP_DEV_COMPOSE" << EOF
+version: '3.8'
+
+services:
+  app_dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lms_app_dev
+    restart: unless-stopped
+    ports:
+      - '3333:3333'
+    env_file:
+      - $DEV_ENV_FILE
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    command: npm run start:dev
+    networks:
+      - lms_network
+
+networks:
+  lms_network:
+    driver: bridge
+EOF
+  
+  log "INFO" "Running app in development mode with Docker..."
+  docker_compose "$TMP_DEV_COMPOSE" up -d
+  
+  # Wait for app to be ready
+  log "INFO" "Development app is starting up. To view logs, run:"
+  echo -e "  $0 dev:app:logs"
+  
+  # Cleanup the temporary file
+  rm "$TMP_DEV_COMPOSE"
 }
 
+# Show development app logs
+show_dev_app_logs() {
+  check_docker
+  log "INFO" "Showing development app logs..."
+  docker logs -f lms_app_dev
+}
+
+# Run the app in production mode using Docker
 run_prod_app() {
-  echo -e "${YELLOW}Starting application in production mode...${NC}"
-  if [ -f "$PROD_ENV_FILE" ]; then
-    echo -e "${GREEN}Using production environment file: $PROD_ENV_FILE${NC}"
-    export $(grep -v '^#' $PROD_ENV_FILE | xargs)
-  else
-    echo -e "${RED}Error: $PROD_ENV_FILE not found. Cannot start in production mode.${NC}"
+  check_docker
+  log "INFO" "Starting application in production mode..."
+  
+  # Check if production env file exists
+  if [ ! -f "$PROD_ENV_FILE" ]; then
+    log "ERROR" "$PROD_ENV_FILE not found. Cannot start in production mode."
     exit 1
   fi
   
-  npm run build
-  npm run start:prod
+  # Run production stack
+  docker_compose "$PROD_COMPOSE_FILE" up -d
+  
+  log "INFO" "Production app is starting up. To view logs, run:"
+  echo -e "  $0 prod:app:logs"
 }
 
+# Show production app logs
+show_prod_app_logs() {
+  check_docker
+  log "INFO" "Showing production app logs..."
+  docker logs -f "$APP_CONTAINER"
+}
+
+# Stop production app
+stop_prod_app() {
+  check_docker
+  log "INFO" "Stopping production app..."
+  docker_compose "$PROD_COMPOSE_FILE" down
+  log "INFO" "Production app stopped."
+}
+
+# Run database migrations
 run_migrations() {
-  echo -e "${YELLOW}Running database migrations...${NC}"
-  if [ "$1" == "prod" ]; then
-    if [ -f "$PROD_ENV_FILE" ]; then
-      echo -e "${GREEN}Using production environment file: $PROD_ENV_FILE${NC}"
-      export $(grep -v '^#' $PROD_ENV_FILE | xargs)
-    else
-      echo -e "${RED}Error: $PROD_ENV_FILE not found. Cannot run migrations in production mode.${NC}"
+  check_docker
+  local env_type=$1
+  local env_file
+  local container_name
+  local compose_file
+  
+  if [ "$env_type" == "prod" ]; then
+    env_file=$PROD_ENV_FILE
+    container_name=$APP_CONTAINER
+    compose_file=$PROD_COMPOSE_FILE
+    log "INFO" "Running migrations in PRODUCTION environment..."
+    
+    # Check if production env file exists
+    if [ ! -f "$env_file" ]; then
+      log "ERROR" "$env_file not found. Cannot run migrations in production mode."
       exit 1
     fi
   else
-    if [ -f "$DEV_ENV_FILE" ]; then
-      echo -e "${GREEN}Using development environment file: $DEV_ENV_FILE${NC}"
-      export $(grep -v '^#' $DEV_ENV_FILE | xargs)
-    else
-      echo -e "${YELLOW}Warning: $DEV_ENV_FILE not found. Using default environment variables.${NC}"
-    fi
+    env_file=$DEV_ENV_FILE
+    container_name="lms_app_dev"
+    compose_file="docker-compose.dev.app.yml"
+    log "INFO" "Running migrations in DEVELOPMENT environment..."
+  fi
+
+  # Create a temporary docker-compose file for migrations
+  local TMP_MIGRATIONS_COMPOSE="docker-compose.migrations.yml"
+  
+  cat > "$TMP_MIGRATIONS_COMPOSE" << EOF
+version: '3.8'
+
+services:
+  migrations:
+    build: .
+    container_name: lms_migrations
+    env_file:
+      - $env_file
+    environment:
+      - NODE_ENV=$([ "$env_type" == "prod" ] && echo "production" || echo "development")
+    command: npm run migration:run
+    networks:
+      - lms_network
+
+networks:
+  lms_network:
+    driver: bridge
+EOF
+
+  log "INFO" "Running migrations in Docker..."
+  docker_compose "$TMP_MIGRATIONS_COMPOSE" up --build
+  
+  # Check migration status
+  local exit_code=$?
+  if [ $exit_code -eq 0 ]; then
+    log "INFO" "Migrations completed successfully."
+  else
+    log "ERROR" "Migration failed with exit code $exit_code."
   fi
   
-  npm run migration:run
+  # Cleanup
+  docker_compose "$TMP_MIGRATIONS_COMPOSE" down
+  rm "$TMP_MIGRATIONS_COMPOSE"
+  
+  return $exit_code
 }
 
-# Main command handling
+# Show status of all containers
+show_status() {
+  check_docker
+  log "INFO" "Current containers status:"
+  echo
+  echo -e "${BOLD}Development Database:${NC}"
+  if docker ps -q --filter "name=$DEV_DB_CONTAINER" | grep -q .; then
+    echo -e "  Status: ${GREEN}Running${NC}"
+    echo -e "  Container: $DEV_DB_CONTAINER"
+    echo -e "  Port: 5432"
+  else
+    echo -e "  Status: ${RED}Stopped${NC}"
+  fi
+  
+  echo
+  echo -e "${BOLD}Development App:${NC}"
+  if docker ps -q --filter "name=lms_app_dev" | grep -q .; then
+    echo -e "  Status: ${GREEN}Running${NC}"
+    echo -e "  Container: lms_app_dev"
+    echo -e "  Port: 3333"
+  else
+    echo -e "  Status: ${RED}Stopped${NC}"
+  fi
+  
+  echo
+  echo -e "${BOLD}Production App:${NC}"
+  if docker ps -q --filter "name=$APP_CONTAINER" | grep -q .; then
+    echo -e "  Status: ${GREEN}Running${NC}"
+    echo -e "  Container: $APP_CONTAINER"
+    echo -e "  Port: 3333"
+  else
+    echo -e "  Status: ${RED}Stopped${NC}"
+  fi
+  
+  echo
+  echo -e "${BOLD}Production Database:${NC}"
+  if docker ps -q --filter "name=$PROD_DB_CONTAINER" | grep -q .; then
+    echo -e "  Status: ${GREEN}Running${NC}"
+    echo -e "  Container: $PROD_DB_CONTAINER"
+    echo -e "  Port: 5433"
+  else
+    echo -e "  Status: ${RED}Stopped${NC}"
+  fi
+}
+
+# Main execution
+print_banner
+
 case "$1" in
   "dev:db:start")
     start_dev_db
@@ -123,21 +357,37 @@ case "$1" in
   "dev:app")
     run_dev_app
     ;;
+  "dev:app:logs")
+    show_dev_app_logs
+    ;;
   "prod:app")
     run_prod_app
     ;;
+  "prod:app:logs")
+    show_prod_app_logs
+    ;;
+  "prod:app:stop")
+    stop_prod_app
+    ;;
   "migrations:run")
-    if [ "$2" == "prod" ]; then
-      run_migrations "prod"
-    else
-      run_migrations "dev"
-    fi
+    run_migrations "dev"
+    ;;
+  "migrations:run:prod")
+    run_migrations "prod"
+    ;;
+  "status")
+    show_status
     ;;
   "help"|"-h"|"--help")
     print_usage
     ;;
+  "")
+    log "ERROR" "No command specified"
+    print_usage
+    exit 1
+    ;;
   *)
-    echo -e "${RED}Unknown command: $1${NC}"
+    log "ERROR" "Unknown command: $1"
     print_usage
     exit 1
     ;;
