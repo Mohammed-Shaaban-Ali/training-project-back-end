@@ -9,8 +9,8 @@ npm-debug.log.*
 yarn-debug.log*
 yarn-error.log*
 
-# Build outputs
-dist
+# Build outputs (don't ignore dist for production builds)
+# dist  
 build
 .nest
 

@@ -28,9 +28,8 @@ services:
       - '9014:3333'
     env_file:
       - .env
-    volumes:
-      - .:/app
-      - /app/node_modules
+    # For production, we don't mount source code as a volume
+    # This allows the container to use the built artifacts
 
 volumes:
   postgres_data:
