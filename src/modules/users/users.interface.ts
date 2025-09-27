@@ -23,7 +23,7 @@ export class UsersInterface {
   }
 
   public findOne (id: number) {    
-    return this.usersService.findOne(id);
+    return this.usersService.findOne({id});
 
   }
 
@@ -60,14 +60,10 @@ export class UsersInterface {
     return this.usersService.changePassword(params);
   }
 
-  public forgetPassword(params: {currentUser: User, hostname: string}) {
-    const {currentUser, hostname} = params;
+  public forgetPassword(params: {email: string, hostname: string}) {
+    const {email, hostname} = params;
 
-    if (!currentUser) throw new NotFoundException('User not found');
-
-    if (!currentUser?.id) throw new NotFoundException('User Id not found');
-    
-    if (!currentUser?.email) throw new NotFoundException('Email not found');
+    if (!email) throw new NotFoundException('Email is required');
 
 
     if (!hostname) throw new NotFoundException('request hostname not found');
@@ -75,6 +71,12 @@ export class UsersInterface {
 
     return this.usersService.forgetPassword(params);
 
+  }
+
+
+  public resetPassword(params: {resetToken: string , newPassword: string}){
+
+    return this.usersService.resetPassword(params);
   }
 
 }

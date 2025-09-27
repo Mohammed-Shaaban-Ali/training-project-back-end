@@ -4,8 +4,8 @@ import {
   ConflictException,
   BadRequestException,
   Logger,
-  HttpException,
   InternalServerErrorException,
+  Global,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
@@ -19,8 +19,10 @@ import { UserHelper } from 'src/common/helpers/user.helper';
 import { MailService } from 'src/utilities/mailer-service';
 import {v4 as uuidV4} from 'uuid';
 import { ConfigService } from '@nestjs/config';
+import { UserKeys, WhereUser } from './types';
 
 
+@Global()
 @Injectable()
 export class UsersService {
 
@@ -82,13 +84,16 @@ export class UsersService {
 
   }
 
-  async findOne(id: number, select?: string[]): Promise<User> {
+  async findOne(whereInput: WhereUser, select?:  readonly UserKeys[]): Promise<User> {
 
-    const query = {};
 
-    if (id) {
-      query['where']= {id};
+    const where = this.validateWhereUserClause(whereInput);
+
+    if (!Object.keys(where).length) {
+      throw new BadRequestException('findOneV2:: Invalid where user elements');
     }
+
+    const query = {where};
 
     if(select && select.length) {
       query['select'] = select;
@@ -98,10 +103,37 @@ export class UsersService {
 
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      if (Object.keys(where).includes('resetToken')) {
+        throw new NotFoundException(`You need to send a new reset email to proceed`);
+
+      } else {
+        throw new NotFoundException(`User not found in DB`);
+      }
     }
 
     return user;
+  }
+
+  private validateWhereUserClause(whereInput: WhereUser) {
+
+    const userColumns: string[] = this.getValidUserKeys();
+
+    const output: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(whereInput ?? {}) ) {
+      if (value && userColumns.includes(key)) {
+        output[key] = value;
+      }
+    }
+
+    return output;
+
+  }
+
+
+  // we need to get the User table fields dynamically to get the up to date fields all the time
+  private getValidUserKeys(): string [] {
+    return this.userRepository.metadata.columns.map(col => col.propertyName) ;
   }
 
 
@@ -124,7 +156,7 @@ export class UsersService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = await this.findOne(id);
+    const user = await this.findOne({id});
 
     // Check for unique constraint if email or teacher_id is being updated
     if (updateUserDto.email || updateUserDto.teacher_id !== undefined) {
@@ -156,7 +188,7 @@ export class UsersService {
     }
   }
 
-  async updateV2(params) {
+  async updateV2(params: {query: {}, updatedFields: {}}) {
 
     const {query, updatedFields} = params;
 
@@ -164,12 +196,12 @@ export class UsersService {
   }
 
   async remove(id: number): Promise<void> {
-    const user = await this.findOne(id);
+    const user = await this.findOne({id});
     await this.userRepository.remove(user);
   }
 
   async toggleActive(id: number): Promise<User> {
-    const user = await this.findOne(id);
+    const user = await this.findOne({id});
     user.active = !user.active;
     return await this.userRepository.save(user);
   }
@@ -239,8 +271,8 @@ export class UsersService {
     const {id, body} = params;
     const {newPassword, oldPassword} = body
 
-    const select = ['id','password'];
-    const user = await this.findOne(id, select);
+    const select: UserKeys[] = ['id','password'];
+    const user = await this.findOne({id}, select);
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -253,8 +285,6 @@ export class UsersService {
     }
 
 
-    console.log('---user---');
-    console.log(user);
 
     const hashedPassword = await UserHelper.hashPassword(newPassword);
 
@@ -271,12 +301,18 @@ export class UsersService {
 
  
 
-  public async forgetPassword (params: {currentUser: User, hostname: string}): Promise<void> {
+  public async forgetPassword (params: {email: string, hostname: string}): Promise<void> {
 
-    const {currentUser, hostname} = params;
+    const {email, hostname} = params;
     // generate the reset password token
     const resetToken = uuidV4();
 
+
+    const user = await this.findOne({email}, ['id', 'email', 'name']);
+
+    if (!user) {
+      throw new NotFoundException('User not exist');
+    }
     //generate the reset password expiry date
     const validTimeBeforeExpiration =  15 // in minutes
 
@@ -284,28 +320,28 @@ export class UsersService {
     expiresIn.setMinutes(expiresIn.getMinutes() + validTimeBeforeExpiration );
     expiresIn.toISOString();
     // persist the resetToken and expiry date in the db
-    const query = {email: currentUser.email};
+    const query = {email: email};
     const updatedFields = {resetToken, resetTokenExpiryDate: expiresIn};
   
 
     await this.updateV2({query, updatedFields});
 
-    // need to send a reset password email 
-
+    // Sending the reset password email.
     const host = this.getHost(hostname);
     const url = `${host}/api/users/resetPassword?token=${encodeURIComponent(resetToken)}`; 
 
     console.log('--url:', url);
     const subject = 'Forget Password';
-    const text = this.getText({url, user: currentUser, expiresInMinutes: 15});
-    const html = this.getHtml({subject, name: currentUser?.name, url, expiresInMinutes: 15});
+    const text = this.getText({url, user, expiresInMinutes: 15});
+    const html = this.getHtml({subject, name: user?.name, url, expiresInMinutes: 15});
     // const text = this.getText({expiresIn, user: currentUser, resetToken}); 
 
-    console.log('---before sending the email---');
-    await this.mailService.sendMail(currentUser.email, subject, text, html).catch(error => {
+    await this.mailService.sendMail(user.email, subject, text, html).catch(error => {
       this.logger.error('changePassword::', error.trace);
       throw new InternalServerErrorException('Error while sending password change email');
-    })
+    });
+
+    
 
     return;
   }
@@ -405,6 +441,44 @@ export class UsersService {
   // Minimal HTML escaping helper for the template:
   private escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
+  }
+
+
+  public async resetPassword(params:{resetToken: string , newPassword: string}) {
+
+    const  {resetToken, newPassword} = params;
+
+
+    const where = {resetToken};
+    const select: UserKeys [] = ['id','resetToken', 'resetTokenExpiryDate'];
+    const user = await this.findOne(where, select);
+
+    if(!user) {
+      throw new NotFoundException('User not exist at all');
+    }
+
+
+
+    if (!user.resetToken || !user.resetTokenExpiryDate) {
+      throw new BadRequestException('You need to re-send the reset email to be able to proceed');
+
+    }
+
+    const now = new Date();
+    if (user.resetTokenExpiryDate && user.resetTokenExpiryDate <  now) {
+      throw new BadRequestException('Reset link is expired');
+    }
+
+    
+    const hashPassword = await UserHelper.hashPassword(newPassword);
+
+    const query = {id: user.id};
+    const updatedFields = {password: hashPassword, resetTokenExpiryDate: null, resetToken:null};
+
+    await this.updateV2({query, updatedFields});
+
+    
+    return;
   }
 
 }

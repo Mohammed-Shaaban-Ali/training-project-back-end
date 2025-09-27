@@ -6,10 +6,10 @@ import {
   IsString,
   IsBoolean,
   IsNumber,
-  MinLength,
   MaxLength,
 } from 'class-validator';
 import { UserRole } from '../entities/user.entity';
+import { IsStrongPassword } from './change-password.dto';
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -28,8 +28,7 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   @IsString()
-  @MinLength(6)
-  @MaxLength(255)
+  // @IsStrongPassword() //! will be disabled for now for easy testing
   password: string;
 
   @IsNotEmpty()

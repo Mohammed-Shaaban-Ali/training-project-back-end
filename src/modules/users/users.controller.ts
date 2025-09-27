@@ -12,17 +12,21 @@ import {
   HttpCode,
   Put,
   Logger,
-  UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
+
+import { 
+  ChangePasswordDto, 
+  CreateUserDto, 
+  FilterAndPaginationDto, 
+  ResetTokenDto, 
+  UpdateUserDto } from './dto';
+
 import { User } from './entities/user.entity';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 import { UsersInterface } from './users.interface';
-import { AuthenticationGuard } from 'src/common/guards/authentiation.guard';
-import { AttachUserInterceptor } from 'src/modules/users/interceptors/attachUser.interceptor';
 import { CurrentUser } from 'src/common/decorators/currentUser';
-import { ChangePasswordDto, CreateUserDto, FilterAndPaginationDto, UpdateUserDto } from './dto';
 import { Hostname } from 'src/common/decorators';
+import { Public } from 'src/common/decorators/publicRoute';
 
 @Controller('users')
 export class UsersController {
@@ -32,6 +36,7 @@ export class UsersController {
     private readonly userInterface: UsersInterface,
   ) {}
 
+  @Public() // skip auth for this route 
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() createUserDto: CreateUserDto): Promise<User> {
@@ -40,34 +45,51 @@ export class UsersController {
     return result;
   }
 
+  // @UseGuards(AuthenticationGuard)
+  // @UseInterceptors(AttachUserInterceptor)
   @Get()
   async findAll( @Query() query: FilterAndPaginationDto): Promise<PaginatedResult<User>>  {
 
     const result =  await this.userInterface.findAll(query);
+    console.log('----result from controller---');
+    console.log(result);
+
     return result;
   }
 
-  @UseGuards(AuthenticationGuard)
-  @UseInterceptors(AttachUserInterceptor)
+  // @UseGuards(AuthenticationGuard)
+  // @UseInterceptors(AttachUserInterceptor)
   @Get('me')
   getCurrentLoggedUser(@CurrentUser() currentUser: User) {
     return { currentUser};
   }
 
 
-  @UseGuards(AuthenticationGuard)
-  @UseInterceptors(AttachUserInterceptor)
+  // @UseGuards(AuthenticationGuard)
+  // @UseInterceptors(AttachUserInterceptor)
+  @Public()
   @Post('forgetPassword')
-  async forgetPassword(@CurrentUser() currentUser: User, @Hostname() hostname) {
+  async forgetPassword(@Body() requestBody: {email: string}, @Hostname() hostname: string) {
 
-    await this.userInterface.forgetPassword({currentUser, hostname});
+    await this.userInterface.forgetPassword({...requestBody, hostname});
 
     return {message: "We've sent a password reset link to your email address. The link will expire in 15 minutes for security purposes."};
 
   }
 
-  @UseGuards(AuthenticationGuard)
-  @UseInterceptors(AttachUserInterceptor)
+
+
+  @Public()
+  @Put('resetPassword')
+  async resetPassword (@Body() requestBody: ResetTokenDto) {
+
+    console.log('---requestBody:', requestBody);
+    await this.userInterface.resetPassword({...requestBody});
+    return {message: 'Password successfully reset.'};
+  }
+
+  // @UseGuards(AuthenticationGuard)
+  // @UseInterceptors(AttachUserInterceptor)
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() loggerUser: User): Promise<User> {
 
@@ -79,7 +101,7 @@ export class UsersController {
     }
   }
 
-  @UseGuards(AuthenticationGuard)
+  // @UseGuards(AuthenticationGuard)
   @Put(':id')
   async update( 
     @Param('id', ParseIntPipe) id: number, 
@@ -91,7 +113,7 @@ export class UsersController {
     return user;
   }
 
-  @UseGuards(AuthenticationGuard)
+  // @UseGuards(AuthenticationGuard)
   @Patch(':id/toggle-active')
   async toggleActive(@Param('id', ParseIntPipe) id: number): Promise<User> {
 
@@ -99,7 +121,7 @@ export class UsersController {
     return user;
   }
 
-  @UseGuards(AuthenticationGuard)
+  // @UseGuards(AuthenticationGuard)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
 
@@ -107,14 +129,12 @@ export class UsersController {
 
   }
 
-  @UseGuards(AuthenticationGuard)
-  @UseInterceptors(AttachUserInterceptor)
+  // @UseGuards(AuthenticationGuard)
+  // @UseInterceptors(AttachUserInterceptor)
   @Patch('changePassword') 
   async changePassword (
     @Body() body: ChangePasswordDto , 
     @CurrentUser() currentUser: User,
-    // @Hostname() hostname: string,
-
   ) {
 
 

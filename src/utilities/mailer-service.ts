@@ -4,39 +4,37 @@ import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService {
-  private readonly transporter: nodemailer.Transporter;
+  private  transporter: nodemailer.Transporter;
   private readonly logger =  new Logger(MailService.name);
-  constructor(
-    private readonly config: ConfigService,
-  ) {
-    const environment = this.config.getOrThrow<string>('app.nodeEnv');
-    console.log('--environment:', environment);
+  
+  constructor(private readonly config: ConfigService ) {}
 
-    const isSecure = environment === 'production';
-    const port = isSecure ? this.config.getOrThrow<string>('emailInfo.securePort') : this.config.getOrThrow<string>('emailInfo.nonSecurePort');
-    const secure = isSecure ? true : false
-    
-    
+  // lazy loading, only will be created once it used, not in the app initialization stage
+  private getTransporter(): nodemailer.Transporter {
 
-    this.transporter =  nodemailer.createTransport({
-      host: this.config.getOrThrow<string>('emailInfo.emailHost'), // e.g., Gmail: smtp.gmail.com
-      port: +port,
-      secure, // Use true for port 465
-      auth: {
-        user: this.config.getOrThrow<string>('emailInfo.emailAddress'),
-        pass: this.config.getOrThrow<string>('emailInfo.emailPassword'),
-      },
-    })
+    if (!this.transporter) {
+      const environment = this.config.getOrThrow<string>('app.nodeEnv');
+  
+      const isSecure = environment === 'production';
+      const port = isSecure ? this.config.getOrThrow<string>('emailInfo.securePort') : this.config.getOrThrow<string>('emailInfo.nonSecurePort');
+  
+      this.transporter =  nodemailer.createTransport({
+        host: this.config.getOrThrow<string>('emailInfo.emailHost'), // e.g., Gmail: smtp.gmail.com
+        port: +port,
+        secure: isSecure, // Use true for port 465
+        auth: {
+          user: this.config.getOrThrow<string>('emailInfo.emailAddress'),
+          pass: this.config.getOrThrow<string>('emailInfo.emailPassword'),
+        },
+      })
+    }
+
+    return this.transporter;
   }
 
-  async sendMail(to: string, subject: string, text: string, html?: string): Promise<void> {
+  public async sendMail(to: string, subject: string, text: string, html?: string): Promise<void> {
     try {
-      console.log('--to:', to);
-      console.log('--subject:', subject);
-      console.log('--text:', text);
-      // console.log('---html:', html);
-      console.log('-- from email:', this.config.getOrThrow<string>('emailInfo.emailAddress'));
-      console.log('--email password:', this.config.getOrThrow<string>('emailInfo.emailPassword'));
+
       const mailOptions = {
         from: this.config.getOrThrow<string>('emailInfo.emailAddress'),
         to,
@@ -45,17 +43,13 @@ export class MailService {
         ...(html ? {html} : {}),
       };
   
-      await this.transporter.sendMail(mailOptions);
+      await this.getTransporter().sendMail(mailOptions);
 
     } catch(error) {
-      console.log('---error---');
-      console.log(error);
-      this.logger.error('sendMail::', error.trace);
+      this.logger.error('sendMail::', error.stack);
+      
       throw error;
     }
   }
-
-
- 
 
 }

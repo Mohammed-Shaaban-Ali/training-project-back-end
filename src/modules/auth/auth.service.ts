@@ -54,8 +54,6 @@ export class AuthService {
     
     if (!user) throw new BadRequestException('User not found');
     
-    console.log('--password:', password);
-    console.log('-- saved hashedPass:', user.password);
 
     const isMatching = await UserHelper.comparePassword(password, user.password);
 

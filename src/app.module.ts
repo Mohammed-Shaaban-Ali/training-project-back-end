@@ -4,12 +4,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { HealthController } from './health/health.controller';
 import { UsersModule } from './modules/users';
 import { AuthModule } from './modules/auth/auth.module';
-import { JwtModule, JwtService } from '@nestjs/jwt';
+import { JwtModule } from '@nestjs/jwt';
 import configuration from './config/configuration.config';
 import { Utils } from './modules/global-utilities/utils';
 import { GlobalUtilitiesModule } from './modules/global-utilities/global-utilities.module';
 import { AuthenticationGuard } from './common/guards/authentiation.guard';
 import { MailService } from './utilities/mailer-service';
+import { APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core';
+import { AttachUserInterceptor } from './modules/users/interceptors';
 
 @Module({
   imports: [
@@ -51,6 +53,13 @@ import { MailService } from './utilities/mailer-service';
     GlobalUtilitiesModule,
   ],
   controllers: [HealthController],
-  providers: [Utils, AuthenticationGuard, MailService],
+  providers: [
+    Utils, 
+    MailService,
+    Reflector,
+    {provide: APP_GUARD, useClass: AuthenticationGuard},
+    {provide: APP_INTERCEPTOR, useClass: AttachUserInterceptor},
+
+  ],
 })
 export class AppModule {}
