@@ -4,9 +4,15 @@ export class CreateUsersTable1724518800000 implements MigrationInterface {
   name = 'CreateUsersTable1724518800000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // Create enum type for user roles (with safe handling if it already exists)
     await queryRunner.query(`
-                CREATE TYPE IF NOT EXISTS "user_role_enum" AS ENUM('teacher', 'student', 'moderator', 'super_admin')
-            `);
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role_enum') THEN
+          CREATE TYPE "user_role_enum" AS ENUM('teacher', 'student', 'moderator', 'super_admin');
+        END IF;
+      END $$;
+    `);
 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "users" (
@@ -25,13 +31,20 @@ export class CreateUsersTable1724518800000 implements MigrationInterface {
     `);
 
     await queryRunner.query(`
-      CREATE UNIQUE INDEX "IDX_users_email_teacher_id" ON "users" ("email", "teacher_id")
+      CREATE UNIQUE INDEX IF NOT EXISTS "IDX_users_email_teacher_id" ON "users" ("email", "teacher_id")
     `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX "IDX_users_email_teacher_id"`);
-    await queryRunner.query(`DROP TABLE "users"`);
-    await queryRunner.query(`DROP TYPE "user_role_enum"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_users_email_teacher_id"`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "users"`);
+    await queryRunner.query(`
+      DO $$ 
+      BEGIN
+        IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role_enum') THEN
+          DROP TYPE "user_role_enum";
+        END IF;
+      END $$;
+    `);
   }
 }
