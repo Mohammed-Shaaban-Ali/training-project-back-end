@@ -1,5 +1,5 @@
 @baseUrl = http://localhost:3333/api
-@token =eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mbyI6eyJpZCI6IjUifSwiaWF0IjoxNzU4OTYxNjY5LCJleHAiOjE3NTg5Njg4Njl9.PUCm43puRgyMR440DtJ-9oOpnT-KXhgtczVv_o3wgGY
+@token =eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mbyI6eyJpZCI6IjUifSwiaWF0IjoxNzU5MDY2MDEwLCJleHAiOjE3NTkwNjYzMTB9.rAg8Tm87clo30emOO3MMeSOEBh0ETtSC5ng2XkyHf2g
 
 
 
@@ -12,10 +12,19 @@ Authorization: Bearer {{token}}
 ###? Login
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
-
+ 
 {
   "email" : "mahqwerty31@gmail.com",
   "password" : "faragfarag"
+}
+
+
+###? Refresh access token
+POST {{baseUrl}}/auth/refresh-access-token
+Content-Type: application/json
+
+{
+  "refreshToken": "1ca92315-40a5-41a9-a7eb-f45cb3c391b1"
 }
 
 
@@ -55,11 +64,11 @@ Content-Type: application/json
 
 {
    "name": "farag",
-  "email": "mahqwerty31@gmail.com",
+  "email": "ms@gmail.com",
   "teacher_id": null,
   "password": "faragfarag",
   "role": "teacher",
-  "phone": "+201111111111",
+  "phone": "+20111111116",
   "image": null,
   "active": true
 }
@@ -91,5 +100,6 @@ Content-Type: application/json
   "resetToken": "40c57d77-b74e-4f6c-b0f1-d03bc59b8c29",
   "newPassword": "faragfarag"
 }
+
 
 

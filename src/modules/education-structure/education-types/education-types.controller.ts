@@ -15,7 +15,11 @@ import { UpdateEducationTypeDto } from './dto/update-education-type.dto';
 import { FilterAndPaginationDto } from './dto/filter-and-pagination.dto';
 import { EducationType } from './entities/education-type.entity';
 import { PaginatedResult } from 'src/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+
+@ApiTags('education-types')
+@ApiBearerAuth()
 @Controller('education-types')
 export class EducationTypesController {
   constructor(private readonly educationTypesService: EducationTypesService) {}

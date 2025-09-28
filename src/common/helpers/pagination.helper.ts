@@ -4,12 +4,12 @@ export class PaginationHelper {
 
   //?Good
   static paginate<T>(params): any{
-    const { users, total, page, limit } = params;
+    const { data, total, page, limit } = params;
 
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: users,
+      data: data,
       pagination: {
         total,
         page,
