@@ -27,7 +27,7 @@ services:
     ports:
       - '9014:3333'
     env_file:
-      - .env
+      - .env.production
     # For production, we don't mount source code as a volume
     # This allows the container to use the built artifacts
 

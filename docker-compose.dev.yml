@@ -19,5 +19,21 @@ services:
       timeout: 10s
       retries: 3
 
+  app_dev:
+    build: .
+    container_name: lms_app_dev
+    restart: unless-stopped
+    depends_on:
+      postgres_dev:
+        condition: service_healthy
+    ports:
+      - '9016:3333'
+    env_file:
+      - .env.development
+    volumes:
+      - .:/app
+      - /app/node_modules
+    # Mount source code for hot-reload in development
+
 volumes:
   postgres_dev_data:

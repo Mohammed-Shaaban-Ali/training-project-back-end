@@ -57,13 +57,13 @@ print_usage() {
   echo -e "${BOLD}Commands:${NC}"
   echo -e "  ${GREEN}dev:db:start${NC}        Start development database"
   echo -e "  ${GREEN}dev:db:stop${NC}         Stop development database"
-  echo -e "  ${GREEN}dev:app${NC}             Run app in development mode with Docker"
+  echo -e "  ${GREEN}dev:app${NC}             Run app in development mode with Docker ${YELLOW}(migrations run automatically)${NC}"
   echo -e "  ${GREEN}dev:app:logs${NC}        View development app logs"
-  echo -e "  ${GREEN}prod:app${NC}            Run app in production mode with Docker"
+  echo -e "  ${GREEN}prod:app${NC}            Run app in production mode with Docker ${YELLOW}(migrations run automatically)${NC}"
   echo -e "  ${GREEN}prod:app:logs${NC}       View production app logs"
   echo -e "  ${GREEN}prod:app:stop${NC}       Stop production app"
-  echo -e "  ${GREEN}migrations:run${NC}      Run database migrations (dev environment)"
-  echo -e "  ${GREEN}migrations:run:prod${NC} Run database migrations (prod environment)"
+  echo -e "  ${GREEN}migrations:run${NC}      Run database migrations (dev environment) ${YELLOW}[DEPRECATED - use dev:app]${NC}"
+  echo -e "  ${GREEN}migrations:run:prod${NC} Run database migrations (prod environment) ${YELLOW}[DEPRECATED - use prod:app]${NC}"
   echo -e "  ${GREEN}status${NC}              Show status of all containers"
   echo -e "  ${GREEN}help${NC}                Show this help message"
 }
@@ -261,10 +261,39 @@ run_migrations() {
   # Create a temporary docker-compose file for migrations
   local TMP_MIGRATIONS_COMPOSE="docker-compose.migrations.yml"
   
+  # Determine the appropriate database service and network configuration
+  if [ "$env_type" == "prod" ]; then
+    postgres_service="postgres"
+    postgres_container="lms_postgres"
+    network_name="training-project-back-end_default"
+  else
+    postgres_service="postgres_dev"
+    postgres_container="lms_postgres_dev"
+    network_name="training-project-back-end_default"
+  fi
+  
   cat > "$TMP_MIGRATIONS_COMPOSE" << EOF
-version: '3.8'
-
 services:
+  $postgres_service:
+    image: postgres:15-alpine
+    container_name: $postgres_container
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: $([ "$env_type" == "prod" ] && echo "lms_db" || echo "lms_db_dev")
+    ports:
+      - '$([ "$env_type" == "prod" ] && echo "9013" || echo "9015"):5432'
+    volumes:
+      - $([ "$env_type" == "prod" ] && echo "postgres_data" || echo "postgres_dev_data"):/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - lms_network
+
   migrations:
     build: .
     container_name: lms_migrations
@@ -273,12 +302,18 @@ services:
     environment:
       - NODE_ENV=$([ "$env_type" == "prod" ] && echo "production" || echo "development")
     command: npm run migration:run
+    depends_on:
+      $postgres_service:
+        condition: service_healthy
     networks:
       - lms_network
 
 networks:
   lms_network:
     driver: bridge
+
+volumes:
+  $([ "$env_type" == "prod" ] && echo "postgres_data" || echo "postgres_dev_data"):
 EOF
 
   log "INFO" "Running migrations in Docker..."
