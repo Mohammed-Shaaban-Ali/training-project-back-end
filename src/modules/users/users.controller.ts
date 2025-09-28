@@ -18,6 +18,7 @@ import {
   ChangePasswordDto, 
   CreateUserDto, 
   FilterAndPaginationDto, 
+  ForgetPasswordDto, 
   ResetTokenDto, 
   UpdateUserDto } from './dto';
 
@@ -27,7 +28,10 @@ import { UsersInterface } from './users.interface';
 import { CurrentUser } from 'src/common/decorators/currentUser';
 import { Hostname } from 'src/common/decorators';
 import { Public } from 'src/common/decorators/publicRoute';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('users')
+@ApiBearerAuth()
 @Controller('users')
 export class UsersController {
   private readonly logger = new Logger(UsersController.name, {timestamp: true});
@@ -48,6 +52,7 @@ export class UsersController {
   // @UseGuards(AuthenticationGuard)
   // @UseInterceptors(AttachUserInterceptor)
   @Get()
+  @ApiQuery({ type: FilterAndPaginationDto })
   async findAll( @Query() query: FilterAndPaginationDto): Promise<PaginatedResult<User>>  {
 
     const result =  await this.userInterface.findAll(query);
@@ -69,7 +74,7 @@ export class UsersController {
   // @UseInterceptors(AttachUserInterceptor)
   @Public()
   @Post('forgetPassword')
-  async forgetPassword(@Body() requestBody: {email: string}, @Hostname() hostname: string) {
+  async forgetPassword(@Body() requestBody: ForgetPasswordDto, @Hostname() hostname: string) {
 
     await this.userInterface.forgetPassword({...requestBody, hostname});
 

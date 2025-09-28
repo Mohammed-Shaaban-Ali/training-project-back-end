@@ -3,6 +3,8 @@ import { CreateUserDto, UsersService } from '../users';
 import { UserHelper } from 'src/common/helpers/user.helper';
 import { Utils } from 'src/modules/global-utilities/utils';
 import {ConfigService} from '@nestjs/config';
+import { UserKeys } from '../users/types';
+import { MoreThanOrEqual } from 'typeorm';
 
 @Injectable()
 export class AuthService {
@@ -17,7 +19,7 @@ export class AuthService {
 
 
 
-  async signUp (newUser: CreateUserDto) {
+  public async signUp (newUser: CreateUserDto) {
 
     // // hash password
     const hashedPassword = await UserHelper.hashPassword(newUser.password);
@@ -40,13 +42,13 @@ export class AuthService {
 
     });
 
-    const {refreshToken} = await this.handlerRefreshToken({user});
+    const {refreshToken} = await this.handlerRefreshToken({userId: user.id});
 
    return { accessToken , refreshToken};
 
   }
 
-  async login (params) {
+  public async login (params) {
 
     const { email, password} = params;
 
@@ -60,30 +62,16 @@ export class AuthService {
     if (!isMatching) throw new BadRequestException('Wrong password');
     
     
-    const payload = {
-      userInfo: {
-        id: user.id,
-      }
-    };
-    console.log('--payload:', payload);
+    const result = await this.generateAccessRefreshTokens({userId: user.id});
 
-    const accessToken = await this.utils.generateAccessToken({payload}).catch(error => {
-      if (error instanceof HttpException) throw error;
-      else throw new InternalServerErrorException('Error while generate the access token');
-
-    });
-
-    const {refreshToken} = await this.handlerRefreshToken({user});
-
-
-    return { accessToken, refreshToken };
+    return result;
 
   }
 
 
-  async handlerRefreshToken (params) {
+  private async handlerRefreshToken (params: {userId: number}) {
     try {
-      const {user} = params;
+      const {userId} = params;
 
       const expiredDates = +(this.configs.get<string>('REFRESH_TOKEN_EXPIRY_IN') || '7');
       const refreshTokenExpiryDate = new Date();
@@ -92,7 +80,7 @@ export class AuthService {
       
       const refreshToken = this.utils.generateRefreshToken();
       
-      const query = { id: user.id};
+      const query = { id: userId};
       const updatedFields = {refreshTokenExpiryDate, refreshToken};
       await this.userService.updateV2({query, updatedFields}).catch(error => {
         Logger.error('Login:: ', error.trace);
@@ -106,7 +94,52 @@ export class AuthService {
     }
   }
 
-  
- 
+  private async generateAccessRefreshTokens(params: {userId: number}) {
+
+    const payload = {
+      userInfo: {
+        id: params.userId,
+      }
+    };
+    console.log('--payload:', payload);
+
+    const accessToken = await this.utils.generateAccessToken({payload}).catch(error => {
+      if (error instanceof HttpException) throw error;
+      else throw new InternalServerErrorException('Error while generate the access token');
+
+    });
+
+    const {refreshToken} = await this.handlerRefreshToken({userId: params.userId});
+
+
+    return { accessToken, refreshToken };
+  }
+
+
+
+  public async refreshAccessToken(params: {refreshToken: string}): Promise<{accessToken: string; refreshToken: string}> {
+
+    const {refreshToken} = params;
+
+    const where = {
+      refreshToken,
+      refreshTokenExpiryDate: MoreThanOrEqual(new Date()),
+    };
+
+    const select: UserKeys[] = ['refreshToken', 'id'];
+
+    const user = await this.userService.findOne(where, select);
+
+
+    if (!user?.refreshToken) {
+      throw new BadRequestException('Use Manual login'); // let the user login by his creds 
+    }
+
+
+    const result = await this.generateAccessRefreshTokens({userId: user.id});
+
+    return result;
+
+  }
   
 }

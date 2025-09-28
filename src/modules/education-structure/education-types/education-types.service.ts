@@ -87,7 +87,7 @@ export class EducationTypesService {
     const page = query.page || 1;
     const limit = query.limit || total || 10;
 
-    return PaginationHelper.paginate(educationTypes, total, page, limit);
+    return PaginationHelper.paginate({data: educationTypes, total, page, limit});
   }
 
   async findOne(id: number): Promise<EducationType> {

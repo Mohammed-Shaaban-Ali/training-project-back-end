@@ -58,8 +58,8 @@ export class SchoolTypesService {
 
     const page = query.page || 1;
     const limit = query.limit || total || 10;
-
-    return PaginationHelper.paginate(schoolTypes, total, page, limit);
+ 
+    return PaginationHelper.paginate({data: schoolTypes, total, page, limit});
   }
 
   async findOne(id: number): Promise<SchoolType> {
