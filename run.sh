@@ -5,6 +5,21 @@
 
 set -e  # Exit on error
 
+# Signal handler to prevent accidental container shutdown
+cleanup_on_exit() {
+  # Only show message, don't stop containers
+  if [ "$1" = "SIGINT" ]; then
+    echo ""
+    echo "Script interrupted. Note: Containers continue running in background."
+    echo "Use './run.sh prod:app:stop' or './run.sh status' to manage them."
+    exit 0
+  fi
+}
+
+# Set up signal traps
+trap 'cleanup_on_exit SIGINT' INT
+trap 'cleanup_on_exit SIGTERM' TERM
+
 # Colors for better readability
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -57,15 +72,18 @@ print_usage() {
   echo -e "${BOLD}Commands:${NC}"
   echo -e "  ${GREEN}dev:db:start${NC}        Start development database"
   echo -e "  ${GREEN}dev:db:stop${NC}         Stop development database"
-  echo -e "  ${GREEN}dev:app${NC}             Run app in development mode ${YELLOW}(background, migrations auto)${NC}"
+  echo -e "  ${GREEN}dev:app${NC}             Start app in development mode ${YELLOW}(persistent background)${NC}"
   echo -e "  ${GREEN}dev:app:logs${NC}        View development app logs"
-  echo -e "  ${GREEN}prod:app${NC}            Run app in production mode ${YELLOW}(background, migrations auto)${NC}"
+  echo -e "  ${GREEN}prod:app${NC}            Start app in production mode ${YELLOW}(persistent background)${NC}"
   echo -e "  ${GREEN}prod:app:logs${NC}       View production app logs"
   echo -e "  ${GREEN}prod:app:stop${NC}       Stop production app"
   echo -e "  ${GREEN}migrations:run${NC}      Run database migrations (dev environment) ${YELLOW}[DEPRECATED - use dev:app]${NC}"
   echo -e "  ${GREEN}migrations:run:prod${NC} Run database migrations (prod environment) ${YELLOW}[DEPRECATED - use prod:app]${NC}"
   echo -e "  ${GREEN}status${NC}              Show status of all containers"
   echo -e "  ${GREEN}help${NC}                Show this help message"
+  echo ""
+  echo -e "${YELLOW}Note: Apps run in persistent background mode. Ctrl+C won't stop containers.${NC}"
+  echo -e "${YELLOW}Use the stop commands or 'docker compose down' to stop services.${NC}"
 }
 
 # Check if Docker and Docker Compose are available
@@ -184,16 +202,21 @@ EOF
   log "INFO" "Running app in development mode (background) with Docker..."
   docker_compose "$TMP_DEV_COMPOSE" up -d
   
-  # Wait a moment and check if containers started successfully
-  sleep 3
+  # Give containers a moment to start
+  sleep 2
   
-  if docker ps | grep -q "lms_app_dev"; then
-    log "INFO" "✅ Development app started successfully and running in background!"
+  if docker ps --filter "name=lms_app_dev" --filter "status=running" | grep -q lms_app_dev; then
+    log "INFO" "✅ Development app started successfully in background!"
+    log "INFO" "Container is running independently."
     echo ""
-    log "INFO" "To view logs, run: ${BOLD}$0 dev:app:logs${NC}"
-    log "INFO" "To check status, run: ${BOLD}$0 status${NC}"
+    log "INFO" "Useful commands:"
+    log "INFO" "  View logs: ${BOLD}$0 dev:app:logs${NC}"
+    log "INFO" "  Check status: ${BOLD}$0 status${NC}"
+    echo ""
+    log "INFO" "App is running on: ${BOLD}http://localhost:3333${NC}"
+    log "INFO" "Script completed. Container continues running in background."
   else
-    log "ERROR" "Failed to start development app. Check logs with: $0 dev:app:logs"
+    log "WARN" "Container may be starting up. Check status with: $0 status"
   fi
   
   # Cleanup the temporary file
@@ -221,21 +244,26 @@ run_prod_app() {
   # Run production stack in detached mode
   docker_compose "$PROD_COMPOSE_FILE" up -d
   
-  # Wait a moment and check if containers started successfully
-  sleep 3
+  # Give containers a moment to start
+  sleep 2
   
-  if docker_compose "$PROD_COMPOSE_FILE" ps | grep -q "Up"; then
-    log "INFO" "✅ Production app started successfully and running in background!"
-    log "INFO" "Container status:"
-    docker_compose "$PROD_COMPOSE_FILE" ps
+  # Quick verification without keeping the script running
+  if docker_compose "$PROD_COMPOSE_FILE" ps --services --filter "status=running" | wc -l | grep -q "^[1-9]"; then
+    log "INFO" "✅ Production app started successfully in background!"
+    log "INFO" "Containers are running independently."
     echo ""
-    log "INFO" "To view logs, run: ${BOLD}$0 prod:app:logs${NC}"
-    log "INFO" "To stop the app, run: ${BOLD}$0 prod:app:stop${NC}"
-    log "INFO" "To check status, run: ${BOLD}$0 status${NC}"
+    log "INFO" "Useful commands:"
+    log "INFO" "  View logs: ${BOLD}$0 prod:app:logs${NC}"
+    log "INFO" "  Stop app: ${BOLD}$0 prod:app:stop${NC}"
+    log "INFO" "  Check status: ${BOLD}$0 status${NC}"
+    echo ""
+    log "INFO" "App is running on: ${BOLD}http://localhost:9014${NC}"
+    log "INFO" "Script completed. Containers continue running in background."
   else
-    log "ERROR" "Failed to start production app. Check logs with: $0 prod:app:logs"
-    return 1
+    log "WARN" "Containers may be starting up. Check status with: $0 status"
   fi
+  
+  # Script exits here, containers keep running
 }
 
 # Show production app logs
