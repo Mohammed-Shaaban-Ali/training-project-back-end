@@ -57,9 +57,9 @@ print_usage() {
   echo -e "${BOLD}Commands:${NC}"
   echo -e "  ${GREEN}dev:db:start${NC}        Start development database"
   echo -e "  ${GREEN}dev:db:stop${NC}         Stop development database"
-  echo -e "  ${GREEN}dev:app${NC}             Run app in development mode with Docker ${YELLOW}(migrations run automatically)${NC}"
+  echo -e "  ${GREEN}dev:app${NC}             Run app in development mode ${YELLOW}(background, migrations auto)${NC}"
   echo -e "  ${GREEN}dev:app:logs${NC}        View development app logs"
-  echo -e "  ${GREEN}prod:app${NC}            Run app in production mode with Docker ${YELLOW}(migrations run automatically)${NC}"
+  echo -e "  ${GREEN}prod:app${NC}            Run app in production mode ${YELLOW}(background, migrations auto)${NC}"
   echo -e "  ${GREEN}prod:app:logs${NC}       View production app logs"
   echo -e "  ${GREEN}prod:app:stop${NC}       Stop production app"
   echo -e "  ${GREEN}migrations:run${NC}      Run database migrations (dev environment) ${YELLOW}[DEPRECATED - use dev:app]${NC}"
@@ -181,12 +181,20 @@ networks:
     driver: bridge
 EOF
   
-  log "INFO" "Running app in development mode with Docker..."
+  log "INFO" "Running app in development mode (background) with Docker..."
   docker_compose "$TMP_DEV_COMPOSE" up -d
   
-  # Wait for app to be ready
-  log "INFO" "Development app is starting up. To view logs, run:"
-  echo -e "  $0 dev:app:logs"
+  # Wait a moment and check if containers started successfully
+  sleep 3
+  
+  if docker ps | grep -q "lms_app_dev"; then
+    log "INFO" "✅ Development app started successfully and running in background!"
+    echo ""
+    log "INFO" "To view logs, run: ${BOLD}$0 dev:app:logs${NC}"
+    log "INFO" "To check status, run: ${BOLD}$0 status${NC}"
+  else
+    log "ERROR" "Failed to start development app. Check logs with: $0 dev:app:logs"
+  fi
   
   # Cleanup the temporary file
   rm "$TMP_DEV_COMPOSE"
@@ -202,7 +210,7 @@ show_dev_app_logs() {
 # Run the app in production mode using Docker
 run_prod_app() {
   check_docker
-  log "INFO" "Starting application in production mode..."
+  log "INFO" "Starting application in production mode (background)..."
   
   # Check if production env file exists
   if [ ! -f "$PROD_ENV_FILE" ]; then
@@ -210,11 +218,24 @@ run_prod_app() {
     exit 1
   fi
   
-  # Run production stack
+  # Run production stack in detached mode
   docker_compose "$PROD_COMPOSE_FILE" up -d
   
-  log "INFO" "Production app is starting up. To view logs, run:"
-  echo -e "  $0 prod:app:logs"
+  # Wait a moment and check if containers started successfully
+  sleep 3
+  
+  if docker_compose "$PROD_COMPOSE_FILE" ps | grep -q "Up"; then
+    log "INFO" "✅ Production app started successfully and running in background!"
+    log "INFO" "Container status:"
+    docker_compose "$PROD_COMPOSE_FILE" ps
+    echo ""
+    log "INFO" "To view logs, run: ${BOLD}$0 prod:app:logs${NC}"
+    log "INFO" "To stop the app, run: ${BOLD}$0 prod:app:stop${NC}"
+    log "INFO" "To check status, run: ${BOLD}$0 status${NC}"
+  else
+    log "ERROR" "Failed to start production app. Check logs with: $0 prod:app:logs"
+    return 1
+  fi
 }
 
 # Show production app logs
