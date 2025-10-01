@@ -12,6 +12,8 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SuccessResponseInterceptor } from './common/interceptors/successResponseTransform.interceptor';
 import { FailureResponseFilter } from './common/failureResponseFilter';
+import {DocumentBuilder, SwaggerModule} from '@nestjs/swagger';
+
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -44,6 +46,26 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
+
+  const swaggerConfigs = new DocumentBuilder()
+    .setTitle('LMS Backend Server')
+    .setDescription('The LMS APIs routes')
+    .setVersion('1.0')
+    .addBearerAuth({
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat:'JWT',
+      in:'header',
+      name: 'Authorization',
+      description: 'Paste your access token here (without the word "Bearer"',
+    })
+    .build();
+
+  const swaggerFactory = () => SwaggerModule.createDocument(app, swaggerConfigs);
+
+  SwaggerModule.setup('swagger', app, swaggerFactory);
+
+
 
   // Get port from config
   const port = configService.get<number>('PORT') || 3333;

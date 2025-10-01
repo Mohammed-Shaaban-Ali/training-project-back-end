@@ -3,7 +3,10 @@ import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users';
 import { LoginDto } from '../users/dto/login-user.dto';
 import { Public } from 'src/common/decorators/publicRoute';
+import {ApiTags} from '@nestjs/swagger';
+import { RefreshAccessTokenDto } from '../users/dto';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
 
@@ -29,6 +32,16 @@ export class AuthController {
     const result = await this.authService.login({email, password});
     return {...result};
 
+  }
+
+  @Public() // skip auth for this route 
+  @Post('refresh-access-token')
+  async refreshAccessToken(@Body() refreshBody: RefreshAccessTokenDto) {
+
+
+    const result = await this.authService.refreshAccessToken(refreshBody);
+
+    return {...result};
   }
 
 

@@ -12,10 +12,19 @@ Authorization: Bearer {{token}}
 ###? Login
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
-
+ 
 {
   "email" : "mahqwerty31@gmail.com",
   "password" : "faragfarag"
+}
+
+
+###? Refresh access token
+POST {{baseUrl}}/auth/refresh-access-token
+Content-Type: application/json
+
+{
+  "refreshToken": "1ca92315-40a5-41a9-a7eb-f45cb3c391b1"
 }
 
 
@@ -55,11 +64,11 @@ Content-Type: application/json
 
 {
    "name": "farag",
-  "email": "mahqwerty31@gmail.com",
+  "email": "ms@gmail.com",
   "teacher_id": null,
   "password": "faragfarag",
   "role": "teacher",
-  "phone": "+201111111111",
+  "phone": "+20111111116",
   "image": null,
   "active": true
 }
@@ -91,5 +100,6 @@ Content-Type: application/json
   "resetToken": "40c57d77-b74e-4f6c-b0f1-d03bc59b8c29",
   "newPassword": "faragfarag"
 }
+
 
 

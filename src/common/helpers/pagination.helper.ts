@@ -2,7 +2,7 @@ import { PaginatedResult } from '../interfaces/paginated-result.interface';
 
 export class PaginationHelper {
 
-  /**
+   /**
    * Create a paginated response
    * @param params - Object containing pagination parameters
    * @param params.users - The data to paginate (can be any entity array)
@@ -11,13 +11,13 @@ export class PaginationHelper {
    * @param params.limit - Number of items per page
    * @returns Paginated result with data and pagination metadata
    */
-  static paginate<T>(params: { users: T[], total: number, page: number, limit: number }): PaginatedResult<T> {
-    const { users, total, page, limit } = params;
+  static paginate<T>(params): any{
+    const { data, total, page, limit } = params;
 
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: users,
+      data: data,
       pagination: {
         total,
         page,

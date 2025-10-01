@@ -25,7 +25,6 @@ export class Utils {
   }
   public generateRefreshToken() {
 
-    console.log('--uuid:', uuidV4());
     return uuidV4();
   }
 }
