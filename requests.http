@@ -1,5 +1,5 @@
 @baseUrl = http://localhost:3333/api
-@token =eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mbyI6eyJpZCI6IjUifSwiaWF0IjoxNzU4OTYxNjY5LCJleHAiOjE3NTg5Njg4Njl9.PUCm43puRgyMR440DtJ-9oOpnT-KXhgtczVv_o3wgGY
+@token =eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mbyI6eyJpZCI6IjUifSwiaWF0IjoxNzU5MzA1OTcwLCJleHAiOjE3NTkzMjAzNzB9.dROCXH5nlYdhb9n0icPNxglXDceiYBHnI5Pq2ecFCOY
 
 
 

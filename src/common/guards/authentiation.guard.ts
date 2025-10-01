@@ -48,7 +48,8 @@ export class AuthenticationGuard implements CanActivate {
     const payload = await this.jwtService.verifyAsync(accessToken).catch(error => {
       // console.log('---eeeerrrror', error);
       this.logger.error('Error while verifying jwt token:', error.stack);
-      const message = error.message === 'jwt expired' ?  'jwt expired' : 'Internal server error';
+      const message = error.message === 'jwt expired' ?  'jwt expired' : 
+      error.message === 'invalid signature' ?  'You need to log in again'  : 'Internal server error';
       throw new InternalServerErrorException(message);
     });
 
