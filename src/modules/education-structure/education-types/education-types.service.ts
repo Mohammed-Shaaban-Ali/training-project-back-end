@@ -87,12 +87,7 @@ export class EducationTypesService {
     const page = query.page || 1;
     const limit = query.limit || total || 10;
 
-    return PaginationHelper.paginate({
-      users: educationTypes, // Using 'users' as the key because that's what the helper expects
-      total,
-      page,
-      limit
-    });
+    return PaginationHelper.paginate({data: educationTypes, total, page, limit});
   }
 
   async findOne(id: number): Promise<EducationType> {

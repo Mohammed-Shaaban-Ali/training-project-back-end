@@ -6,6 +6,7 @@ import {
   Logger,
   InternalServerErrorException,
   Global,
+  HttpException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
@@ -56,10 +57,10 @@ export class UsersService {
       return await this.userRepository.save(user);
 
     } catch (error) {
-      if (error instanceof ConflictException) {
+      if (error instanceof HttpException) {
         throw error;
       }
-      throw new BadRequestException('Failed to create user');
+      throw new BadRequestException('Internal server error:: Failed to create user');
     }
   }
 
@@ -80,10 +81,25 @@ export class UsersService {
     const limit = query.limit || total || 10;
 
 
-    return PaginationHelper.paginate({users, total, page, limit});
+    return PaginationHelper.paginate({data: users, total, page, limit});
 
   }
 
+  /**
+   * Finds a user based on the provided where clause and optional select fields.
+   * 
+   * This method validates the input where clause, constructs a query, and retrieves
+   * a user from the repository. If no user is found, it throws a NotFoundException
+   * with a context-specific message (e.g., for reset token scenarios). If the where
+   * clause is invalid or empty, it throws a BadRequestException.
+   * 
+   * @param {WhereUser} whereInput - The where clause object used to filter the user query.
+   *                                 Must contain at least one valid key-value pair.
+   * @param {readonly UserKeys[]} [select] - Optional array of user fields to select.
+   *                                         If provided, only these fields will be returned.
+   * 
+   * @returns {Promise<User>} A promise that resolves to the found User object.
+ */
   async findOne(whereInput: WhereUser, select?:  readonly UserKeys[]): Promise<User> {
 
 
@@ -104,8 +120,10 @@ export class UsersService {
 
     if (!user) {
       if (Object.keys(where).includes('resetToken')) {
-        throw new NotFoundException(`You need to send a new reset email to proceed`);
+        throw new BadRequestException(`You need to send a new reset email to proceed`);
 
+      } else if (Object.keys(where).includes('refreshToken')) {
+        throw new BadRequestException(`Invalid refresh access token or the user not exist`);
       } else {
         throw new NotFoundException(`User not found in DB`);
       }

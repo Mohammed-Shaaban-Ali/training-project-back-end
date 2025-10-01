@@ -15,7 +15,10 @@ import { UpdateSchoolTypeDto } from './dto/update-school-type.dto';
 import { FilterAndPaginationDto } from './dto/filter-and-pagination.dto';
 import { SchoolType } from './entities/school-type.entity';
 import { PaginatedResult } from 'src/common';
+import { ApiTags } from '@nestjs/swagger';
 
+
+@ApiTags('school-types')
 @Controller('school-types')
 export class SchoolTypesController {
   constructor(private readonly schoolTypesService: SchoolTypesService) {}
